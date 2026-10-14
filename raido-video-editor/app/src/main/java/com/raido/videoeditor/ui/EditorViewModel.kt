@@ -61,6 +61,18 @@ class EditorViewModel(app: Application, private val projectId: String) : Android
         update(current.copy(clips = listOf(clip.copy(trimStartMs = startMs, trimEndMs = endMs))))
     }
 
+    fun rotate() {
+        val current = _project.value ?: return
+        val clip = current.clips.firstOrNull() ?: return
+        update(current.copy(clips = listOf(clip.copy(rotationDeg = (clip.rotationDeg + 90) % 360))))
+    }
+
+    fun toggleMute() {
+        val current = _project.value ?: return
+        val clip = current.clips.firstOrNull() ?: return
+        update(current.copy(clips = listOf(clip.copy(muted = !clip.muted))))
+    }
+
     private fun update(p: Project) {
         val saved = p.copy(modifiedAt = System.currentTimeMillis())
         _project.value = saved

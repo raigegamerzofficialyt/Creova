@@ -20,6 +20,8 @@ data class Clip(
     val durationMs: Long,
     val trimStartMs: Long,
     val trimEndMs: Long,
+    val rotationDeg: Int = 0,
+    val muted: Boolean = false,
 ) {
     val trimmedMs: Long get() = trimEndMs - trimStartMs
 
@@ -30,6 +32,8 @@ data class Clip(
         put("durationMs", durationMs)
         put("trimStartMs", trimStartMs)
         put("trimEndMs", trimEndMs)
+        put("rotationDeg", rotationDeg)
+        put("muted", muted)
     }
 
     companion object {
@@ -40,6 +44,8 @@ data class Clip(
             durationMs = o.getLong("durationMs"),
             trimStartMs = o.getLong("trimStartMs"),
             trimEndMs = o.getLong("trimEndMs"),
+            rotationDeg = o.optInt("rotationDeg", 0),
+            muted = o.optBoolean("muted", false),
         )
     }
 }

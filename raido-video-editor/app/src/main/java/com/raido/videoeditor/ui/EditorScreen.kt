@@ -24,13 +24,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import android.widget.Toast
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -155,16 +157,29 @@ fun EditorScreen(projectId: String, onBack: () -> Unit) {
                 onTrim = vm::setTrim,
                 modifier = Modifier.weight(1f),
             )
-            // Bottom toolbar: only tools that actually work are shown.
-            Row(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                    .padding(vertical = 8.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
             ) {
-                ToolButton(Icons.Filled.VideoLibrary, if (importing) "Importing…" else "Replace video") {
-                    if (!importing) pickVideo()
+                items(TOOLS) { tool ->
+                    val label = when (tool.id) {
+                        "mute" -> if (clip.muted) "Unmute" else "Mute"
+                        "replace" -> if (importing) "Importing…" else tool.label
+                        else -> tool.label
+                    }
+                    val icon = if (tool.id == "mute" && clip.muted) Icons.Filled.VolumeOff else tool.icon
+                    ToolButton(icon, label, ready = tool.ready) {
+                        when (tool.id) {
+                            "replace" -> if (!importing) pickVideo()
+                            "rotate" -> vm.rotate()
+                            "mute" -> vm.toggleMute()
+                            "trim" -> Toast.makeText(context, "Drag the Trim slider above the toolbar", Toast.LENGTH_SHORT).show()
+                            else -> Toast.makeText(context, "${tool.label} is coming soon", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         }
@@ -240,14 +255,57 @@ private fun EmptyEditor(importing: Boolean, onImport: () -> Unit, modifier: Modi
     }
 }
 
+private data class Tool(val id: String, val label: String, val icon: ImageVector, val ready: Boolean = false)
+
+private val TOOLS = listOf(
+    // Edit
+    Tool("replace", "Replace", Icons.Filled.VideoLibrary, true),
+    Tool("trim", "Trim", Icons.Filled.ContentCut, true),
+    Tool("split", "Split", Icons.Filled.CallSplit),
+    Tool("crop", "Crop", Icons.Filled.Crop),
+    Tool("rotate", "Rotate", Icons.Filled.RotateRight, true),
+    Tool("speed", "Speed", Icons.Filled.Speed),
+    Tool("merge", "Merge", Icons.Filled.MergeType),
+    Tool("ratio", "Ratio", Icons.Filled.AspectRatio),
+    // Look
+    Tool("filters", "Filters", Icons.Filled.FilterVintage),
+    Tool("adjust", "Adjust", Icons.Filled.Tune),
+    Tool("effects", "Effects", Icons.Filled.AutoAwesome),
+    Tool("transitions", "Transitions", Icons.Filled.SwapHoriz),
+    Tool("chroma", "Green screen", Icons.Filled.Colorize),
+    Tool("blend", "Blend", Icons.Filled.Layers),
+    Tool("keyframes", "Keyframes", Icons.Filled.Timeline),
+    Tool("overlay", "Overlay", Icons.Filled.PictureInPictureAlt),
+    // Text
+    Tool("text", "Text", Icons.Filled.TextFields),
+    Tool("stickers", "Stickers", Icons.Filled.EmojiEmotions),
+    Tool("captions", "Captions", Icons.Filled.ClosedCaption),
+    // Audio
+    Tool("music", "Music", Icons.Filled.MusicNote),
+    Tool("voice", "Voiceover", Icons.Filled.Mic),
+    Tool("mute", "Mute", Icons.Filled.VolumeUp, true),
+    Tool("sfx", "Sound FX", Icons.Filled.GraphicEq),
+    // AI
+    Tool("removebg", "Remove BG", Icons.Filled.AutoFixHigh),
+    Tool("silence", "Cut silence", Icons.Filled.VoiceOverOff),
+    Tool("reframe", "Smart reframe", Icons.Filled.CropFree),
+    Tool("suggest", "AI tips", Icons.Filled.Lightbulb),
+)
+
 @Composable
-private fun ToolButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ToolButton(icon: ImageVector, label: String, ready: Boolean, onClick: () -> Unit) {
+    val alpha = if (ready) 1f else 0.45f
     Column(
-        modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = Modifier
+            .width(72.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha))
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha), fontSize = 11.sp, maxLines = 1)
+        Text(if (ready) " " else "Soon", color = MaterialTheme.colorScheme.secondary.copy(alpha = alpha), fontSize = 9.sp)
     }
 }
 
@@ -268,6 +326,14 @@ private fun PreviewAndTrim(
         player.prepare()
         player.seekTo(clip.trimStartMs)
     }
+
+    LaunchedEffect(clip.rotationDeg) {
+        player.setVideoEffects(
+            if (clip.rotationDeg == 0) emptyList()
+            else listOf(ScaleAndRotateTransformation.Builder().setRotationDegrees(clip.rotationDeg.toFloat()).build()),
+        )
+    }
+    LaunchedEffect(clip.muted) { player.volume = if (clip.muted) 0f else 1f }
 
     var isPlaying by remember { mutableStateOf(false) }
     var positionMs by remember { mutableLongStateOf(clip.trimStartMs) }

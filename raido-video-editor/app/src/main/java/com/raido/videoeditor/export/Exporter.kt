@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
@@ -74,13 +75,15 @@ class Exporter(private val context: Context) {
                     .build(),
             )
             .build()
+        val videoEffects = buildList<androidx.media3.common.Effect> {
+            if (clip.rotationDeg != 0) {
+                add(ScaleAndRotateTransformation.Builder().setRotationDegrees(clip.rotationDeg.toFloat()).build())
+            }
+            add(Presentation.createForWidthAndHeight(w, h, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+        }
         val edited = EditedMediaItem.Builder(mediaItem)
-            .setEffects(
-                Effects(
-                    emptyList(),
-                    listOf(Presentation.createForWidthAndHeight(w, h, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)),
-                ),
-            )
+            .setRemoveAudio(clip.muted)
+            .setEffects(Effects(emptyList(), videoEffects))
             .build()
 
         val t = Transformer.Builder(context)
