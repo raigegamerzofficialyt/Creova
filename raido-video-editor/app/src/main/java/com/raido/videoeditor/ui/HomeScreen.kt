@@ -53,6 +53,7 @@ fun HomeScreen(
     projects: List<Project>,
     onCreate: (name: String, aspect: AspectRatio) -> Unit,
     onDelete: (Project) -> Unit,
+    onOpen: (Project) -> Unit,
 ) {
     var showNewDialog by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Project?>(null) }
@@ -105,7 +106,7 @@ fun HomeScreen(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(projects, key = { it.id }) { project ->
-                    ProjectRow(project, onDelete = { pendingDelete = project })
+                    ProjectRow(project, onOpen = { onOpen(project) }, onDelete = { pendingDelete = project })
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
@@ -167,12 +168,13 @@ private fun EmptyState() {
 }
 
 @Composable
-private fun ProjectRow(project: Project, onDelete: () -> Unit) {
+private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onOpen)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
